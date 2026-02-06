@@ -12,7 +12,41 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                // Confirm Dockerfile is visible
-                sh 'ls -l'
-                // Build image from workspace root
-                sh 'docker build -t $DOCKERHUB_USER
+                sh 'ls -l'  // debug: confirm Dockerfile is present
+                sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
+            }
+        }
+
+        stage('Push to Dev Repo') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-dev:latest'
+                    sh 'docker push $DOCKERHUB_USER/devops-build-dev:latest'
+                }
+            }
+        }
+
+        stage('Push to Prod Repo') {
+            when {
+                branch 'main'
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-prod:latest'
+                    sh 'docker push $DOCKERHUB_USER/devops-build-prod:latest'
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh './deploy.sh'
+            }
+        }
+    }
+}
