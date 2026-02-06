@@ -16,6 +16,15 @@ pipeline {
                 }
             }
         }
+        stage('Push to Dev Repo') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-dev:latest'
+                sh 'docker push $DOCKERHUB_USER/devops-build-dev:latest'
+            }
+        }
         stage('Push to Prod Repo') {
             when {
                 branch 'main'
