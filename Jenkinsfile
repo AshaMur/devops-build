@@ -4,9 +4,17 @@ pipeline {
         DOCKERHUB_USER = 'srinivasamurthym'
     }
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
+                // 👇 Run inside the devops-build directory
+                dir('devops-build') {
+                    sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
+                }
             }
         }
         stage('Push to Dev Repo') {
@@ -20,7 +28,7 @@ pipeline {
         }
         stage('Push to Prod Repo') {
             when {
-                branch 'master'
+                branch 'main'
             }
             steps {
                 sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-prod:latest'
@@ -29,7 +37,9 @@ pipeline {
         }
         stage('Deploy') {
             steps {
-                sh './deploy.sh'
+                dir('devops-build') {
+                    sh './deploy.sh'
+                }
             }
         }
     }
