@@ -9,13 +9,12 @@ pipeline {
                 checkout scm
             }
         }
-        stage('Build Docker Image') {
-            steps {
-                dir('devops-build') {
-                    sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
-                }
-            }
+       stage('Build Docker Image') {
+           steps {
+           sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
+           }
         }
+
         stage('Push to Dev Repo') {
             when {
                 branch 'dev'
