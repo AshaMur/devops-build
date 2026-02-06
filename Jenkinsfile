@@ -11,19 +11,9 @@ pipeline {
         }
         stage('Build Docker Image') {
             steps {
-                // 👇 Run inside the devops-build directory
                 dir('devops-build') {
                     sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
                 }
-            }
-        }
-        stage('Push to Dev Repo') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-dev:latest'
-                sh 'docker push $DOCKERHUB_USER/devops-build-dev:latest'
             }
         }
         stage('Push to Prod Repo') {
