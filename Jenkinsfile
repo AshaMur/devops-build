@@ -13,7 +13,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh 'ls -l'  // debug: confirm Dockerfile is present
-                sh 'docker build -t $DOCKERHUB_USER/devops-build:latest .'
+                sh 'DOCKER_BUILDKIT=0 docker build -t $DOCKERHUB_USER/devops-build:latest .'
             }
         }
 
