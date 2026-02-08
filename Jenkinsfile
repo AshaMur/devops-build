@@ -11,22 +11,24 @@ pipeline {
         stage('Build & Push Docker Image') {
             steps {
                 script {
-                    // Detect branch name
                     def branch = env.GIT_BRANCH ?: env.BRANCH_NAME
 
-                    // Use Jenkins credentials for DockerHub login
                     withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
-                        // Decide tag based on branch
+                        // Decide tag and Dockerfile based on branch
                         def tag = "latest"
+                        def dockerfile = "Dockerfile"
+
                         if (branch.contains("dev")) {
                             tag = "dev"
+                            dockerfile = "Dockerfile.deploy"
                         } else if (branch.contains("prod")) {
                             tag = "prod"
+                            dockerfile = "Dockerfile.deploy"
                         }
 
-                        // Build image
+                        // Build image with BuildKit enabled
                         sh """
-                        docker build -t $DOCKERHUB_USER/devops-build:${tag} .
+                        DOCKER_BUILDKIT=1 docker build -f ${dockerfile} -t $DOCKERHUB_USER/devops-build:${tag} .
                         """
 
                         // Login and push
