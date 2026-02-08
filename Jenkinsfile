@@ -1,8 +1,11 @@
 pipeline {
     agent any
+
     environment {
-        DOCKERHUB_USER = 'srinivasamurthym'
+        DOCKERHUB_USER = credentials('dockerhub-user')   // Jenkins credential ID
+        DOCKERHUB_PASS = credentials('dockerhub-pass')   // Jenkins credential ID
     }
+
     stages {
         stage('Checkout') {
             steps {
@@ -12,36 +15,36 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'ls -l'  // debug: confirm Dockerfile is present
-                sh 'DOCKER_BUILDKIT=0 docker build -t $DOCKERHUB_USER/devops-build:latest .'
-            }
-        }
+                script {
+                    def branch = env.GIT_BRANCH ?: env.BRANCH_NAME
 
-        stage('Push to Dev Repo') {
-            when {
-                branch 'dev'
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-dev:latest'
-                    sh 'docker push $DOCKERHUB_USER/devops-build-dev:latest'
+                    if (branch == 'main') {
+                        // Full multi-stage build
+                        sh """
+                        docker build -t $DOCKERHUB_USER/devops-build:latest .
+                        """
+                    } else {
+                        // Deployment-only build (serve prebuilt build/ folder)
+                        sh """
+                        docker build -f Dockerfile.deploy -t $DOCKERHUB_USER/devops-build:${branch} .
+                        """
+                    }
                 }
             }
         }
 
-        stage('Push to Prod Repo') {
-            when {
-                branch 'main'
-            }
+        stage('Push Docker Image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                    sh 'docker tag $DOCKERHUB_USER/devops-build:latest $DOCKERHUB_USER/devops-build-prod:latest'
-                    sh 'docker push $DOCKERHUB_USER/devops-build-prod:latest'
+                script {
+                    sh """
+                    echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+                    docker push $DOCKERHUB_USER/devops-build:latest || true
+                    docker push $DOCKERHUB_USER/devops-build:${env.GIT_BRANCH}
+                    """
                 }
             }
         }
+
         stage('Deploy') {
             steps {
                 sh './deploy.sh'
