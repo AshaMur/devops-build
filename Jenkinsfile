@@ -1,11 +1,17 @@
 pipeline {
     agent any
-
-    environment {
-        DOCKERHUB_USER = credentials('dockerhub-user')   // Jenkins credential ID
-        DOCKERHUB_PASS = credentials('dockerhub-pass')   // Jenkins credential ID
-    }
-
+    stages {
+        stage('Build & Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                    sh """
+                    docker build -t $DOCKERHUB_USER/devops-build:${env.BRANCH_NAME} .
+                    echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin
+                    docker push $DOCKERHUB_USER/devops-build:${env.BRANCH_NAME}
+                    """
+                }
+            }
+        }
     stages {
         stage('Checkout') {
             steps {
