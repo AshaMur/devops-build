@@ -3,14 +3,15 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds') 
-        DOCKER_IMAGE = "srinivasamurthym/dev"
+        DEV_IMAGE = "srinivasamurthym/dev"
+        PROD_IMAGE = "srinivasamurthym/prod"
         DOCKER_TAG = "latest"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'dev',
+                git branch: "${env.BRANCH_NAME}",
                     url: 'https://github.com/AshaMur/devops-build.git'
             }
         }
@@ -18,7 +19,11 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                    if (env.BRANCH_NAME == 'dev') {
+                        sh "docker build -t ${DEV_IMAGE}:${DOCKER_TAG} ."
+                    } else if (env.BRANCH_NAME == 'main') {
+                        sh "docker build -t ${PROD_IMAGE}:${DOCKER_TAG} ."
+                    }
                 }
             }
         }
@@ -34,7 +39,11 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    if (env.BRANCH_NAME == 'dev') {
+                        sh "docker push ${DEV_IMAGE}:${DOCKER_TAG}"
+                    } else if (env.BRANCH_NAME == 'main') {
+                        sh "docker push ${PROD_IMAGE}:${DOCKER_TAG}"
+                    }
                 }
             }
         }
@@ -42,10 +51,13 @@ pipeline {
         stage('Deploy Container') {
             steps {
                 script {
-                    // Stop old container if running
-                    sh "docker rm -f react-app || true"
-                    // Run new container on port 3000 -> 80
-                    sh "docker run -d --name react-app -p 3000:80 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    if (env.BRANCH_NAME == 'dev') {
+                        sh "docker rm -f react-app-dev || true"
+                        sh "docker run -d --name react-app-dev -p 3001:80 ${DEV_IMAGE}:${DOCKER_TAG}"
+                    } else if (env.BRANCH_NAME == 'main') {
+                        sh "docker rm -f react-app-prod || true"
+                        sh "docker run -d --name react-app-prod -p 3000:80 ${PROD_IMAGE}:${DOCKER_TAG}"
+                    }
                 }
             }
         }
@@ -53,7 +65,6 @@ pipeline {
         stage('Cleanup') {
             steps {
                 script {
-                    // Remove dangling images, stopped containers, unused networks/volumes
                     sh "docker system prune -af || true"
                 }
             }
