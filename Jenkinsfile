@@ -51,23 +51,39 @@ pipeline {
         stage('Cleanup Containers') {
             steps {
                 script {
-                    // Remove any old containers before redeploy
-                    sh "docker rm -f react-app-prod || true"
                     sh "docker rm -f react-app-dev || true"
+                    sh "docker rm -f react-app-prod || true"
                 }
             }
         }
 
-        stage('Deploy Container') {
+        stage('Deploy Dev Container') {
+            when {
+                branch 'dev'
+            }
             steps {
                 script {
-                    if (env.BRANCH_NAME == 'dev') {
-                        sh "docker rm -f react-app-dev || true"
-                        sh "docker run -d --name react-app-dev -p 3001:80 ${DEV_IMAGE}:${DOCKER_TAG}"
-                    } else if (env.BRANCH_NAME == 'main') {
-                        sh "docker rm -f react-app-prod || true"
-                        sh "docker run -d --name react-app-prod -p 3000:80 ${PROD_IMAGE}:${DOCKER_TAG}"
-                    }
+                    sh "docker run -d --name react-app-dev -p 3001:80 ${DEV_IMAGE}:${DOCKER_TAG}"
+                }
+            }
+        }
+
+        stage('Approval for Prod Deploy') {
+            when {
+                branch 'main'
+            }
+            steps {
+                input message: "Do you want to deploy to PROD (port 3000)?", ok: "Deploy"
+            }
+        }
+
+        stage('Deploy Prod Container') {
+            when {
+                branch 'main'
+            }
+            steps {
+                script {
+                    sh "docker run -d --name react-app-prod -p 3000:80 ${PROD_IMAGE}:${DOCKER_TAG}"
                 }
             }
         }
@@ -75,7 +91,6 @@ pipeline {
         stage('Cleanup Images/Networks') {
             steps {
                 script {
-                    // Remove dangling images, stopped containers, unused networks/volumes
                     sh "docker system prune -af || true"
                 }
             }
