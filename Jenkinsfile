@@ -49,5 +49,14 @@ pipeline {
                 }
             }
         }
+
+        stage('Cleanup') {
+            steps {
+                script {
+                    // Remove dangling images, stopped containers, unused networks/volumes
+                    sh "docker system prune -af || true"
+                }
+            }
+        }
     }
 }
