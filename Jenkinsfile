@@ -51,8 +51,8 @@ pipeline {
         stage('Cleanup Containers') {
             steps {
                 script {
+                    // Only clean dev container, leave prod untouched
                     sh "docker rm -f react-app-dev || true"
-                    sh "docker rm -f react-app-prod || true"
                 }
             }
         }
@@ -68,23 +68,12 @@ pipeline {
             }
         }
 
-        stage('Approval for Prod Deploy') {
+        stage('Skip Prod Deploy') {
             when {
                 branch 'main'
             }
             steps {
-                input message: "Do you want to deploy to PROD (port 3000)?", ok: "Deploy"
-            }
-        }
-
-        stage('Deploy Prod Container') {
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    sh "docker run -d --name react-app-prod -p 3000:80 ${PROD_IMAGE}:${DOCKER_TAG}"
-                }
+                echo "Prod deploy skipped. Live app on port 3000 remains untouched."
             }
         }
 
